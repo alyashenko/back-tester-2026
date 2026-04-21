@@ -1,33 +1,36 @@
 #include "common/MarketDataEvent.hpp"
 
-#include <chrono>
+#include <array>
+#include <cstdio>
+#include <ctime>
 #include <iomanip>
 #include <ostream>
-#include <sstream>
+#include <string>
 
 namespace cmf {
 
 namespace {
 
 // Format an epoch-ns timestamp as "YYYY-MM-DD HH:MM:SS.nnnnnnnnn" (UTC).
-// Using std::chrono so we don't depend on localtime / timezone data.
+// Uses POSIX gmtime_r instead of the C++20 <chrono> calendar types so we
+// can build with older libstdc++ (system GCC 10 on Ubuntu 20.04).
 std::string formatNanoTimeUtc(NanoTime ns) {
-  using namespace std::chrono;
-  const auto whole_sec = ns / 1'000'000'000LL;
-  const auto sub_ns = ns % 1'000'000'000LL;
-  const sys_seconds tp{seconds{whole_sec}};
-  const auto dp = floor<days>(tp);
-  const year_month_day ymd{dp};
-  const hh_mm_ss hms{tp - dp};
+  // Epoch nanoseconds for backtests are always positive, so the sub-second
+  // remainder fits in an unsigned 0..999'999'999 range - advertise that to
+  // the compiler via unsigned long to keep -Wformat-truncation happy.
+  const std::time_t whole_sec = static_cast<std::time_t>(ns / 1'000'000'000LL);
+  const unsigned long sub_ns =
+      static_cast<unsigned long>(ns % 1'000'000'000LL);
 
-  std::ostringstream oss;
-  oss << std::setfill('0') << std::setw(4) << static_cast<int>(ymd.year())
-      << '-' << std::setw(2) << static_cast<unsigned>(ymd.month()) << '-'
-      << std::setw(2) << static_cast<unsigned>(ymd.day()) << ' ' << std::setw(2)
-      << hms.hours().count() << ':' << std::setw(2) << hms.minutes().count()
-      << ':' << std::setw(2) << hms.seconds().count() << '.' << std::setw(9)
-      << sub_ns;
-  return oss.str();
+  std::tm tmv{};
+  gmtime_r(&whole_sec, &tmv);
+
+  std::array<char, 64> buf{};
+  std::snprintf(buf.data(), buf.size(),
+                "%04d-%02d-%02d %02d:%02d:%02d.%09lu",
+                tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday,
+                tmv.tm_hour, tmv.tm_min, tmv.tm_sec, sub_ns);
+  return std::string(buf.data());
 }
 
 char sideChar(Side s) {

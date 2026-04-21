@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 using namespace cmf;
 
@@ -60,10 +61,12 @@ std::array<std::uint8_t, kRecordSize> makeRecord() {
 TEST_CASE("MarketDataEvent - symbol roundtrip", "[MarketDataEvent]") {
   MarketDataEvent ev;
   ev.setSymbol("FCEU SI 20260316 PS");
-  REQUIRE(ev.symbolView() == "FCEU SI 20260316 PS");
+  // Compare via std::string to avoid depending on a Catch2 StringMaker<>
+  // specialization for std::string_view.
+  REQUIRE(std::string(ev.symbolView()) == "FCEU SI 20260316 PS");
 
   ev.setSymbol("");
-  REQUIRE(ev.symbolView().empty());
+  REQUIRE(std::string(ev.symbolView()).empty());
 }
 
 TEST_CASE("L3FileReader - decodeRecord parses packed layout",
@@ -83,7 +86,7 @@ TEST_CASE("L3FileReader - decodeRecord parses packed layout",
   REQUIRE(ev.flags == 0x80);
   REQUIRE(ev.ts_in_delta == 1234);
   REQUIRE(ev.sequence == 987654);
-  REQUIRE(ev.symbolView() == "FCEU SI 20260316 PS");
+  REQUIRE(std::string(ev.symbolView()) == "FCEU SI 20260316 PS");
   REQUIRE(ev.rtype == 160);
   REQUIRE(ev.publisher_id == 101u);
   REQUIRE(ev.instrument_id == 442);

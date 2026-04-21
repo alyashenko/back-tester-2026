@@ -64,6 +64,10 @@ set(TGT zstd-static-lib)
 add_library(${TGT} INTERFACE)
 add_dependencies(${TGT} zstd)
 target_include_directories(${TGT} SYSTEM PUBLIC INTERFACE ${CMAKE_BINARY_DIR}/include)
-target_link_directories(${TGT} PUBLIC INTERFACE ${CMAKE_BINARY_DIR}/lib ${CMAKE_BINARY_DIR}/lib64)
-target_link_libraries(${TGT} PUBLIC INTERFACE -lzstd)
+# Link the static archive explicitly (rather than '-lzstd') so the linker
+# never silently picks up a shared libzstd.so from LD_LIBRARY_PATH / system
+# paths. This keeps the resulting binary self-contained.
+target_link_libraries(${TGT} PUBLIC INTERFACE
+    ${CMAKE_BINARY_DIR}/lib/libzstd.a
+)
 

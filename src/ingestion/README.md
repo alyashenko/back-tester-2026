@@ -132,6 +132,31 @@ cmake -B build -S .
 cmake --build build -j
 ```
 
+### Building against the system glibc / compiler
+
+On hosts where a newer toolchain (e.g. Anaconda's GCC 11.2) is active, the
+produced binary ends up linked against the conda libraries and won't run on
+machines that only have the distro glibc. To build a fully self-contained
+binary against the system toolchain on Ubuntu 20.04:
+
+```bash
+sudo apt install -y g++-10   # needed for C++20 defaulted operator==
+
+# clear any conda-injected compile / link flags
+env -i PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin HOME=$HOME bash -c '
+  cd /path/to/repo &&
+  rm -rf build 3rdparty/Catch2 &&
+  cmake -B build -S . \
+      -DCMAKE_C_COMPILER=/usr/bin/gcc-10 \
+      -DCMAKE_CXX_COMPILER=/usr/bin/g++-10 &&
+  cmake --build build -j'
+```
+
+The resulting `build/bin/back-tester` only depends on `libstdc++.so.6`,
+`libgcc_s.so.1` and `libc.so.6` from `/lib/x86_64-linux-gnu/` (zstd is
+linked statically). `ldd` should show no paths under `/nvme/...anaconda3/`
+and `readelf -d` should report no `RPATH`.
+
 ## Tests
 
 ```bash
